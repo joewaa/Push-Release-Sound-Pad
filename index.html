@@ -1,0 +1,1126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Push & Release Sound Pad</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Phosphor Icons CDN -->
+  <script src="https://unpkg.com/@phosphor-icons/web@2.1.1"></script>
+  <!-- Font -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace'],
+          },
+          colors: {
+            brand: {
+              50: '#eef2ff',
+              500: '#6366f1',
+              600: '#4f46e5',
+              700: '#4338ca',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    /* Prevent unwanted text selection during rapid button holding */
+    .no-select {
+      -webkit-touch-callout: none;
+      -webkit-user-select: none;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+    
+    /* Radial lighting & custom glow effects */
+    .glow-press {
+      box-shadow: 0 0 50px -10px rgba(99, 102, 241, 0.65), 0 0 20px -5px rgba(168, 85, 247, 0.4);
+    }
+    .glow-release {
+      box-shadow: 0 0 50px -10px rgba(16, 185, 129, 0.65), 0 0 20px -5px rgba(5, 150, 105, 0.4);
+    }
+    
+    /* 3D button realistic click depth */
+    .btn-3d {
+      transition: all 0.12s cubic-bezier(0.4, 0, 0.2, 1);
+      transform: translateY(0);
+      box-shadow: 0 16px 32px -8px rgba(0, 0, 0, 0.6), 0 0 0 2px rgba(255, 255, 255, 0.05) inset;
+    }
+    .btn-3d:active, .btn-3d.is-pressed {
+      transform: translateY(8px) scale(0.985);
+      box-shadow: 0 4px 12px -2px rgba(0, 0, 0, 0.8), 0 0 0 2px rgba(99, 102, 241, 0.4) inset;
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen font-sans flex flex-col antialiased selection:bg-indigo-500 selection:text-white no-select">
+
+  <!-- Header -->
+  <header class="border-b border-slate-800/80 bg-slate-900/50 backdrop-blur-md sticky top-0 z-30">
+    <div class="max-w-5xl mx-auto px-4 py-3.5 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 via-indigo-500 to-purple-500 flex items-center justify-center text-white shadow-lg shadow-indigo-500/25">
+          <i class="ph-bold ph-waveform text-xl"></i>
+        </div>
+        <div>
+          <h1 class="font-extrabold text-base md:text-lg tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white via-slate-100 to-slate-400">
+            Push &amp; Release Sound Engine
+          </h1>
+          <p class="text-xs text-slate-400 font-medium">3-Second Press &amp; Release Dual Trigger</p>
+        </div>
+      </div>
+
+      <!-- Quick Settings / Master Vol -->
+      <div class="flex items-center gap-4">
+        <div class="flex items-center gap-2 bg-slate-800/70 border border-slate-700/60 rounded-full px-3 py-1.5">
+          <i class="ph-fill ph-speaker-high text-slate-400 text-sm" id="volume-icon"></i>
+          <input id="master-volume" type="range" min="0" max="1" step="0.01" value="0.8" class="w-20 sm:w-28 h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-indigo-500">
+          <span id="volume-label" class="font-mono text-xs text-slate-300 w-8 text-right">80%</span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="flex-1 max-w-5xl w-full mx-auto px-4 py-6 md:py-8 flex flex-col gap-6">
+
+    <!-- Top Section: Interactive Push-to-Hold Area -->
+    <div class="relative bg-gradient-to-b from-slate-900/90 to-slate-900/40 border border-slate-800 rounded-3xl p-6 sm:p-10 flex flex-col items-center justify-center overflow-hidden shadow-2xl backdrop-blur-xl">
+      <!-- Background Ambient Glow -->
+      <div id="ambient-glow" class="absolute -top-32 w-96 h-96 bg-indigo-600/10 rounded-full blur-3xl pointer-events-none transition-all duration-700"></div>
+
+      <!-- Realtime Status Banner -->
+      <div class="flex flex-wrap items-center justify-center gap-2 mb-6">
+        <div id="status-pill" class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-semibold tracking-wide bg-slate-800/80 border border-slate-700 text-slate-300">
+          <span id="status-dot" class="w-2 h-2 rounded-full bg-slate-400"></span>
+          <span id="status-text">READY: PRESS &amp; HOLD</span>
+        </div>
+        <div class="hidden sm:inline-flex items-center gap-1.5 text-xs text-slate-500 font-mono bg-slate-950/60 px-3 py-1.5 rounded-full border border-slate-800/60">
+          <kbd class="px-1.5 py-0.5 text-[10px] bg-slate-800 rounded text-slate-300 border border-slate-700 font-mono">SPACE</kbd> or 
+          <kbd class="px-1.5 py-0.5 text-[10px] bg-slate-800 rounded text-slate-300 border border-slate-700 font-mono">HOLD BUTTON</kbd>
+        </div>
+      </div>
+
+      <!-- Dual Visualizer & Progress Bars -->
+      <div class="w-full max-w-lg mb-8 grid grid-cols-2 gap-3 sm:gap-4">
+        <!-- Press Clip Status Box -->
+        <div id="card-press-status" class="bg-slate-950/70 border border-slate-800 rounded-2xl p-3 sm:p-4 transition-all duration-300">
+          <div class="flex items-center justify-between text-xs mb-2">
+            <span class="font-bold flex items-center gap-1.5 text-indigo-400">
+              <span class="w-1.5 h-1.5 rounded-full bg-indigo-500"></span> SOUND A (PRESS)
+            </span>
+            <span id="time-press" class="font-mono text-slate-400 text-[11px]">0.0s / 3.0s</span>
+          </div>
+          <!-- 3-Second Progress Bar -->
+          <div class="h-2 w-full bg-slate-800 rounded-full overflow-hidden">
+            <div id="bar-press" class="h-full bg-gradient-to-r from-indigo-500 to-purple-500 w-0 transition-none rounded-full"></div>
+          </div>
+        </div>
+
+        <!-- Release Clip Status Box -->
+        <div id="card-release-status" class="bg-slate-950/70 border border-slate-800 rounded-2xl p-3 sm:p-4 transition-all duration-300">
+          <div class="flex items-center justify-between text-xs mb-2">
+            <span class="font-bold flex items-center gap-1.5 text-emerald-400">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> SOUND B (RELEASE)
+            </span>
+            <span id="time-release" class="font-mono text-slate-400 text-[11px]">0.0s / 3.0s</span>
+          </div>
+          <!-- 3-Second Progress Bar -->
+          <div class="h-2 w-full bg-slate-800 rounded-full overflow-hidden">
+            <div id="bar-release" class="h-full bg-gradient-to-r from-emerald-500 to-teal-400 w-0 transition-none rounded-full"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Realtime Audio Waveform Canvas -->
+      <div class="w-full max-w-lg mb-6 relative">
+        <canvas id="waveform-canvas" class="w-full h-16 rounded-xl bg-slate-950/80 border border-slate-800/80 shadow-inner block"></canvas>
+        <span class="absolute top-1.5 right-2 text-[10px] font-mono text-slate-500 uppercase tracking-wider">Live Waveform</span>
+      </div>
+
+      <!-- BIG INTERACTIVE TRIGGER BUTTON -->
+      <div class="relative group my-2">
+        <button id="trigger-btn"
+          type="button"
+          class="btn-3d w-56 h-56 sm:w-64 sm:h-64 rounded-full bg-gradient-to-b from-indigo-600 via-indigo-700 to-slate-900 border-4 border-indigo-500/40 flex flex-col items-center justify-center p-4 focus:outline-none focus:ring-4 focus:ring-indigo-500/30 transition-transform active:scale-95 touch-none cursor-pointer text-white">
+          <div class="w-20 h-20 rounded-full bg-indigo-500/20 flex items-center justify-center mb-2 pointer-events-none group-hover:scale-110 transition-transform">
+            <i id="btn-icon" class="ph-bold ph-hand-tap text-4xl text-indigo-200"></i>
+          </div>
+          <span id="btn-title" class="font-extrabold text-xl sm:text-2xl tracking-wide pointer-events-none drop-shadow">PRESS &amp; HOLD</span>
+          <span id="btn-subtext" class="text-xs font-semibold text-indigo-200/80 mt-1 pointer-events-none font-mono">Sound A plays immediately</span>
+        </button>
+      </div>
+
+      <!-- Quick action instruction -->
+      <p class="text-xs text-slate-400 mt-6 text-center max-w-md">
+        Hold down the button to play Sound A for up to 3.0s. As soon as you release, Sound A stops and Sound B triggers for 3.0s.
+      </p>
+    </div>
+
+    <!-- Bottom Section: Audio Source & Preset Configuration Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+      <!-- SOUND A (PRESS) CONFIGURATION -->
+      <div class="bg-slate-900/60 border border-slate-800 rounded-3xl p-5 sm:p-6 flex flex-col gap-4 shadow-lg">
+        <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+          <div class="flex items-center gap-2.5">
+            <div class="w-8 h-8 rounded-lg bg-indigo-500/10 text-indigo-400 border border-indigo-500/30 flex items-center justify-center font-bold text-sm">
+              A
+            </div>
+            <div>
+              <h2 class="font-bold text-sm text-slate-200">Sound A &bull; Press Trigger</h2>
+              <p class="text-[11px] text-slate-400">Plays once on press (Max 3s)</p>
+            </div>
+          </div>
+          <button id="preview-press-btn" class="px-2.5 py-1 text-xs rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium border border-slate-700 flex items-center gap-1.5 transition">
+            <i class="ph-bold ph-play"></i> Test 3s
+          </button>
+        </div>
+
+        <!-- Presets Selection -->
+        <div class="space-y-1.5">
+          <label class="text-xs font-semibold text-slate-300 block">Synthesizer Preset</label>
+          <div class="grid grid-cols-3 gap-2">
+            <button data-slot="press" data-preset="scifi-charge" class="preset-btn px-2.5 py-2 text-xs rounded-xl bg-indigo-600/20 border border-indigo-500/50 text-indigo-300 font-medium text-left truncate active:scale-95 transition">
+              ⚡ Sci-Fi Beam
+            </button>
+            <button data-slot="press" data-preset="bass-swell" class="preset-btn px-2.5 py-2 text-xs rounded-xl bg-slate-800/80 border border-slate-700 text-slate-400 font-medium text-left truncate active:scale-95 transition">
+              🎸 Sub Bass
+            </button>
+            <button data-slot="press" data-preset="laser-ramp" class="preset-btn px-2.5 py-2 text-xs rounded-xl bg-slate-800/80 border border-slate-700 text-slate-400 font-medium text-left truncate active:scale-95 transition">
+              🛸 Cyber Rev
+            </button>
+          </div>
+        </div>
+
+        <!-- Custom Upload or URL -->
+        <div class="space-y-3 pt-2">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-semibold text-slate-300">Custom Audio File (MP3 / WAV / OGG)</span>
+            <span id="label-press-file" class="text-[11px] font-mono text-slate-400 max-w-[150px] truncate">Using Synth</span>
+          </div>
+
+          <!-- File Upload dropzone button -->
+          <label class="cursor-pointer border border-dashed border-slate-700 hover:border-indigo-500/60 bg-slate-950/40 rounded-xl p-3 flex items-center justify-center gap-2 text-xs text-slate-300 hover:bg-slate-800/40 transition">
+            <i class="ph-bold ph-upload-simple text-base text-indigo-400"></i>
+            <span>Choose MP3 File</span>
+            <input type="file" id="file-input-press" accept="audio/*" class="hidden">
+          </label>
+
+          <!-- Or URL -->
+          <div class="flex gap-2">
+            <input type="url" id="url-input-press" placeholder="Or paste 3-sec MP3 audio URL..." class="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 placeholder-slate-600 focus:outline-none focus:border-indigo-500 font-mono">
+            <button id="load-url-press" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 rounded-xl text-xs font-semibold text-slate-200 border border-slate-700 transition">Load</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- SOUND B (RELEASE) CONFIGURATION -->
+      <div class="bg-slate-900/60 border border-slate-800 rounded-3xl p-5 sm:p-6 flex flex-col gap-4 shadow-lg">
+        <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+          <div class="flex items-center gap-2.5">
+            <div class="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 flex items-center justify-center font-bold text-sm">
+              B
+            </div>
+            <div>
+              <h2 class="font-bold text-sm text-slate-200">Sound B &bull; Release Trigger</h2>
+              <p class="text-[11px] text-slate-400">Plays once on release (Max 3s)</p>
+            </div>
+          </div>
+          <button id="preview-release-btn" class="px-2.5 py-1 text-xs rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium border border-slate-700 flex items-center gap-1.5 transition">
+            <i class="ph-bold ph-play"></i> Test 3s
+          </button>
+        </div>
+
+        <!-- Presets Selection -->
+        <div class="space-y-1.5">
+          <label class="text-xs font-semibold text-slate-300 block">Synthesizer Preset</label>
+          <div class="grid grid-cols-3 gap-2">
+            <button data-slot="release" data-preset="space-burst" class="preset-btn px-2.5 py-2 text-xs rounded-xl bg-emerald-600/20 border border-emerald-500/50 text-emerald-300 font-medium text-left truncate active:scale-95 transition">
+              💥 Warp Burst
+            </button>
+            <button data-slot="release" data-preset="bell-chime" class="preset-btn px-2.5 py-2 text-xs rounded-xl bg-slate-800/80 border border-slate-700 text-slate-400 font-medium text-left truncate active:scale-95 transition">
+              🔔 Glass Chime
+            </button>
+            <button data-slot="release" data-preset="arcade-hit" class="preset-btn px-2.5 py-2 text-xs rounded-xl bg-slate-800/80 border border-slate-700 text-slate-400 font-medium text-left truncate active:scale-95 transition">
+              👾 Retro Glitch
+            </button>
+          </div>
+        </div>
+
+        <!-- Custom Upload or URL -->
+        <div class="space-y-3 pt-2">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-semibold text-slate-300">Custom Audio File (MP3 / WAV / OGG)</span>
+            <span id="label-release-file" class="text-[11px] font-mono text-slate-400 max-w-[150px] truncate">Using Synth</span>
+          </div>
+
+          <!-- File Upload dropzone button -->
+          <label class="cursor-pointer border border-dashed border-slate-700 hover:border-emerald-500/60 bg-slate-950/40 rounded-xl p-3 flex items-center justify-center gap-2 text-xs text-slate-300 hover:bg-slate-800/40 transition">
+            <i class="ph-bold ph-upload-simple text-base text-emerald-400"></i>
+            <span>Choose MP3 File</span>
+            <input type="file" id="file-input-release" accept="audio/*" class="hidden">
+          </label>
+
+          <!-- Or URL -->
+          <div class="flex gap-2">
+            <input type="url" id="url-input-release" placeholder="Or paste 3-sec MP3 audio URL..." class="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 placeholder-slate-600 focus:outline-none focus:border-emerald-500 font-mono">
+            <button id="load-url-release" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 rounded-xl text-xs font-semibold text-slate-200 border border-slate-700 transition">Load</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Interactive Behavior Config Card -->
+    <div class="bg-slate-900/40 border border-slate-800/80 rounded-2xl p-4 flex flex-wrap items-center justify-between gap-4 text-xs">
+      <div class="flex items-center gap-3">
+        <i class="ph-bold ph-info text-indigo-400 text-lg"></i>
+        <span class="text-slate-300">
+          <strong>Behavior:</strong> Button press immediately begins 3.0s playback of Sound A. If released before 3.0s finishes, Sound A immediately cuts off and Sound B starts playing for 3.0s.
+        </span>
+      </div>
+      <div class="flex items-center gap-2">
+        <label for="force-clip-cut" class="text-slate-300 select-none cursor-pointer flex items-center gap-2 font-medium">
+          <input type="checkbox" id="force-clip-cut" checked class="w-4 h-4 rounded text-indigo-600 bg-slate-950 border-slate-700 accent-indigo-500 cursor-pointer">
+          Stop Sound A immediately upon release
+        </label>
+      </div>
+    </div>
+
+    <!-- Notification Toast (In place of alert()) -->
+    <div id="toast" class="fixed bottom-6 right-6 max-w-sm px-4 py-3 bg-slate-800 border border-slate-700 text-slate-200 rounded-2xl shadow-2xl flex items-center gap-3 transform translate-y-24 opacity-0 transition-all duration-300 z-50 pointer-events-none">
+      <i id="toast-icon" class="ph-bold ph-check-circle text-lg text-emerald-400"></i>
+      <span id="toast-msg" class="text-xs font-medium">Notification message</span>
+    </div>
+
+  </main>
+
+  <script>
+    /* ====================================================================
+       Push & Release 3-Second Audio Core Application Logic
+       ==================================================================== */
+
+    // Global Web Audio Context & Nodes
+    let audioCtx = null;
+    let masterGain = null;
+    let analyser = null;
+    let waveformData = null;
+
+    // Track active playback state
+    let isPressed = false;
+    let currentPressSource = null;    // AudioBufferSourceNode or custom synth handle
+    let currentReleaseSource = null;  // AudioBufferSourceNode or custom synth handle
+    let pressRafId = null;
+    let releaseRafId = null;
+    let pressStartTime = 0;
+    let releaseStartTime = 0;
+    const CLIP_DURATION = 3.0; // 3 seconds fixed
+
+    // Active Slot Audio Configuration
+    const audioSlots = {
+      press: {
+        type: 'preset',           // 'preset' | 'buffer'
+        presetName: 'scifi-charge',
+        buffer: null,
+        fileName: 'Sci-Fi Beam (Synth)'
+      },
+      release: {
+        type: 'preset',
+        presetName: 'space-burst',
+        buffer: null,
+        fileName: 'Warp Burst (Synth)'
+      }
+    };
+
+    // DOM Elements
+    const triggerBtn = document.getElementById('trigger-btn');
+    const statusPill = document.getElementById('status-pill');
+    const statusDot = document.getElementById('status-dot');
+    const statusText = document.getElementById('status-text');
+    const btnIcon = document.getElementById('btn-icon');
+    const btnTitle = document.getElementById('btn-title');
+    const btnSubtext = document.getElementById('btn-subtext');
+    const ambientGlow = document.getElementById('ambient-glow');
+
+    const barPress = document.getElementById('bar-press');
+    const timePress = document.getElementById('time-press');
+    const barRelease = document.getElementById('bar-release');
+    const timeRelease = document.getElementById('time-release');
+
+    const cardPress = document.getElementById('card-press-status');
+    const cardRelease = document.getElementById('card-release-status');
+
+    const masterVolumeInput = document.getElementById('master-volume');
+    const volumeLabel = document.getElementById('volume-label');
+    const volumeIcon = document.getElementById('volume-icon');
+    const forceClipCutCheck = document.getElementById('force-clip-cut');
+
+    const canvas = document.getElementById('waveform-canvas');
+    const canvasCtx = canvas.getContext('2d');
+
+    // UI Toast Notification Helper (Complies with no alert() constraint)
+    let toastTimeout = null;
+    function showNotification(msg, isError = false) {
+      const toast = document.getElementById('toast');
+      const toastMsg = document.getElementById('toast-msg');
+      const toastIcon = document.getElementById('toast-icon');
+
+      toastMsg.textContent = msg;
+      if (isError) {
+        toastIcon.className = "ph-bold ph-warning-circle text-lg text-rose-400";
+        toast.className = toast.className.replace('border-slate-700', 'border-rose-500/50');
+      } else {
+        toastIcon.className = "ph-bold ph-check-circle text-lg text-emerald-400";
+        toast.className = toast.className.replace('border-rose-500/50', 'border-slate-700');
+      }
+
+      toast.classList.remove('translate-y-24', 'opacity-0');
+      clearTimeout(toastTimeout);
+      toastTimeout = setTimeout(() => {
+        toast.classList.add('translate-y-24', 'opacity-0');
+      }, 3200);
+    }
+
+    // Lazy initialization of Web Audio API (required by browsers for user interaction policies)
+    function ensureAudioContext() {
+      if (!audioCtx) {
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        audioCtx = new AudioContextClass();
+
+        masterGain = audioCtx.createGain();
+        masterGain.gain.setValueAtTime(parseFloat(masterVolumeInput.value), audioCtx.currentTime);
+
+        analyser = audioCtx.createAnalyser();
+        analyser.fftSize = 256;
+        analyser.smoothingTimeConstant = 0.8;
+        waveformData = new Uint8Array(analyser.frequencyBinCount);
+
+        masterGain.connect(analyser);
+        analyser.connect(audioCtx.destination);
+      }
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+    }
+
+    /* ------------------------------------------------------------------
+       Procedural 3-Second Audio Synthesizer Presets
+       Built completely standalone - No external MP3 downloads required!
+       ------------------------------------------------------------------ */
+    function playPresetSound(presetName, targetGainNode) {
+      const startTime = audioCtx.currentTime;
+      const duration = 3.0; // Exact 3 seconds constraint
+
+      if (presetName === 'scifi-charge') {
+        // Charging sci-fi energetic riser with subtle vibrato
+        const osc = audioCtx.createOscillator();
+        const sub = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+
+        osc.type = 'sawtooth';
+        sub.type = 'sine';
+
+        // Exponential frequency sweep over 3 seconds
+        osc.frequency.setValueAtTime(140, startTime);
+        osc.frequency.exponentialRampToValueAtTime(880, startTime + duration);
+
+        sub.frequency.setValueAtTime(70, startTime);
+        sub.frequency.exponentialRampToValueAtTime(320, startTime + duration);
+
+        // Envelope
+        gain.gain.setValueAtTime(0.001, startTime);
+        gain.gain.linearRampToValueAtTime(0.3, startTime + 0.3);
+        gain.gain.setValueAtTime(0.35, startTime + duration - 0.2);
+        gain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
+
+        // Filter modulation
+        const filter = audioCtx.createBiquadFilter();
+        filter.type = 'lowpass';
+        filter.frequency.setValueAtTime(300, startTime);
+        filter.frequency.exponentialRampToValueAtTime(4500, startTime + duration);
+
+        osc.connect(filter);
+        sub.connect(filter);
+        filter.connect(gain);
+        gain.connect(targetGainNode);
+
+        osc.start(startTime);
+        sub.start(startTime);
+        osc.stop(startTime + duration);
+        sub.stop(startTime + duration);
+
+        return {
+          stop: () => {
+            try {
+              gain.gain.cancelScheduledValues(audioCtx.currentTime);
+              gain.gain.setValueAtTime(gain.gain.value, audioCtx.currentTime);
+              gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.04);
+              setTimeout(() => {
+                osc.stop();
+                sub.stop();
+              }, 50);
+            } catch(e){}
+          }
+        };
+      } 
+      else if (presetName === 'bass-swell') {
+        // Warm harmonic analog sub swell
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(55, startTime); // Note A1
+        osc.frequency.linearRampToValueAtTime(110, startTime + duration);
+
+        gain.gain.setValueAtTime(0.001, startTime);
+        gain.gain.linearRampToValueAtTime(0.45, startTime + 1.2);
+        gain.gain.setValueAtTime(0.4, startTime + 2.5);
+        gain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
+
+        osc.connect(gain);
+        gain.connect(targetGainNode);
+        osc.start(startTime);
+        osc.stop(startTime + duration);
+
+        return {
+          stop: () => {
+            try {
+              gain.gain.cancelScheduledValues(audioCtx.currentTime);
+              gain.gain.linearRampToValueAtTime(0.0001, audioCtx.currentTime + 0.05);
+              setTimeout(() => osc.stop(), 60);
+            } catch(e){}
+          }
+        };
+      }
+      else if (presetName === 'laser-ramp') {
+        // High frequency cyber pulse
+        const osc = audioCtx.createOscillator();
+        const lfo = audioCtx.createOscillator();
+        const lfoGain = audioCtx.createGain();
+        const gain = audioCtx.createGain();
+
+        osc.type = 'square';
+        lfo.type = 'sine';
+        lfo.frequency.setValueAtTime(6, startTime);
+        lfo.frequency.linearRampToValueAtTime(25, startTime + duration);
+        lfoGain.gain.setValueAtTime(80, startTime);
+
+        lfo.connect(osc.frequency);
+        osc.frequency.setValueAtTime(400, startTime);
+        osc.frequency.exponentialRampToValueAtTime(1200, startTime + duration);
+
+        gain.gain.setValueAtTime(0.001, startTime);
+        gain.gain.linearRampToValueAtTime(0.18, startTime + 0.2);
+        gain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
+
+        osc.connect(gain);
+        gain.connect(targetGainNode);
+        lfo.start(startTime);
+        osc.start(startTime);
+        lfo.stop(startTime + duration);
+        osc.stop(startTime + duration);
+
+        return {
+          stop: () => {
+            try {
+              gain.gain.cancelScheduledValues(audioCtx.currentTime);
+              gain.gain.linearRampToValueAtTime(0.0001, audioCtx.currentTime + 0.04);
+              setTimeout(() => { osc.stop(); lfo.stop(); }, 50);
+            } catch(e){}
+          }
+        };
+      }
+      else if (presetName === 'space-burst') {
+        // Impact with resonant noise tail for release
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(500, startTime);
+        osc.frequency.exponentialRampToValueAtTime(40, startTime + 1.2);
+
+        // Noise buffer for blast feel
+        const bufferSize = audioCtx.sampleRate * 2.5;
+        const noiseBuffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+        const output = noiseBuffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) {
+          output[i] = Math.random() * 2 - 1;
+        }
+        const whiteNoise = audioCtx.createBufferSource();
+        whiteNoise.buffer = noiseBuffer;
+        const noiseFilter = audioCtx.createBiquadFilter();
+        noiseFilter.type = 'lowpass';
+        noiseFilter.frequency.setValueAtTime(1200, startTime);
+        noiseFilter.frequency.linearRampToValueAtTime(100, startTime + duration);
+
+        const noiseGain = audioCtx.createGain();
+        noiseGain.gain.setValueAtTime(0.25, startTime);
+        noiseGain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
+
+        gain.gain.setValueAtTime(0.35, startTime);
+        gain.gain.exponentialRampToValueAtTime(0.0001, startTime + 1.5);
+
+        osc.connect(gain);
+        gain.connect(targetGainNode);
+
+        whiteNoise.connect(noiseFilter);
+        noiseFilter.connect(noiseGain);
+        noiseGain.connect(targetGainNode);
+
+        osc.start(startTime);
+        whiteNoise.start(startTime);
+        osc.stop(startTime + duration);
+        whiteNoise.stop(startTime + duration);
+
+        return {
+          stop: () => {
+            try {
+              gain.gain.cancelScheduledValues(audioCtx.currentTime);
+              noiseGain.gain.cancelScheduledValues(audioCtx.currentTime);
+              gain.gain.linearRampToValueAtTime(0.0001, audioCtx.currentTime + 0.04);
+              noiseGain.gain.linearRampToValueAtTime(0.0001, audioCtx.currentTime + 0.04);
+              setTimeout(() => { osc.stop(); whiteNoise.stop(); }, 50);
+            } catch(e){}
+          }
+        };
+      }
+      else if (presetName === 'bell-chime') {
+        // Crystalline peaceful release chime
+        const freqs = [523.25, 659.25, 783.99, 1046.50]; // C Major Chord
+        const gain = audioCtx.createGain();
+        gain.gain.setValueAtTime(0.001, startTime);
+        gain.gain.linearRampToValueAtTime(0.3, startTime + 0.05);
+        gain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
+
+        const oscs = freqs.map(f => {
+          const o = audioCtx.createOscillator();
+          o.type = 'sine';
+          o.frequency.setValueAtTime(f, startTime);
+          o.connect(gain);
+          o.start(startTime);
+          o.stop(startTime + duration);
+          return o;
+        });
+
+        gain.connect(targetGainNode);
+
+        return {
+          stop: () => {
+            try {
+              gain.gain.cancelScheduledValues(audioCtx.currentTime);
+              gain.gain.linearRampToValueAtTime(0.0001, audioCtx.currentTime + 0.05);
+              setTimeout(() => oscs.forEach(o => o.stop()), 60);
+            } catch(e){}
+          }
+        };
+      }
+      else if (presetName === 'arcade-hit') {
+        // Fast 8-bit descending arpeggio
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'square';
+
+        const notes = [880, 784, 659, 587, 523, 440, 392, 330, 261, 196];
+        const step = duration / notes.length;
+        notes.forEach((freq, idx) => {
+          osc.frequency.setValueAtTime(freq, startTime + (idx * step));
+        });
+
+        gain.gain.setValueAtTime(0.18, startTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+
+        osc.connect(gain);
+        gain.connect(targetGainNode);
+        osc.start(startTime);
+        osc.stop(startTime + duration);
+
+        return {
+          stop: () => {
+            try {
+              gain.gain.cancelScheduledValues(audioCtx.currentTime);
+              gain.gain.linearRampToValueAtTime(0.0001, audioCtx.currentTime + 0.04);
+              setTimeout(() => osc.stop(), 50);
+            } catch(e){}
+          }
+        };
+      }
+
+      return null;
+    }
+
+    /* ------------------------------------------------------------------
+       Audio Source Playback Controller (Clip 3s duration cap)
+       ------------------------------------------------------------------ */
+    function playAudioSlot(slotKey) {
+      ensureAudioContext();
+      const config = audioSlots[slotKey];
+      const slotGain = audioCtx.createGain();
+      slotGain.gain.setValueAtTime(1.0, audioCtx.currentTime);
+      slotGain.connect(masterGain);
+
+      if (config.type === 'buffer' && config.buffer) {
+        const source = audioCtx.createBufferSource();
+        source.buffer = config.buffer;
+        
+        // Connect to master through slot gain
+        source.connect(slotGain);
+
+        // Clamp playback exactly to 3.0s as specified
+        const startTime = audioCtx.currentTime;
+        source.start(startTime, 0, CLIP_DURATION);
+
+        return {
+          stop: () => {
+            try {
+              slotGain.gain.cancelScheduledValues(audioCtx.currentTime);
+              slotGain.gain.linearRampToValueAtTime(0.0001, audioCtx.currentTime + 0.04);
+              setTimeout(() => {
+                source.stop();
+                source.disconnect();
+              }, 50);
+            } catch(e) {}
+          }
+        };
+      } else {
+        // Fallback to selected procedural synthesizer preset
+        return playPresetSound(config.presetName, slotGain);
+      }
+    }
+
+    /* ------------------------------------------------------------------
+       Visual Progress & Timer Animations (3-Second Counter)
+       ------------------------------------------------------------------ */
+    function startProgressPress() {
+      cancelAnimationFrame(pressRafId);
+      pressStartTime = performance.now();
+      cardPress.classList.add('border-indigo-500', 'bg-indigo-950/20');
+
+      function update() {
+        const elapsed = (performance.now() - pressStartTime) / 1000;
+        const clamped = Math.min(elapsed, CLIP_DURATION);
+        const percent = (clamped / CLIP_DURATION) * 100;
+
+        barPress.style.width = `${percent}%`;
+        timePress.textContent = `${clamped.toFixed(1)}s / 3.0s`;
+
+        if (clamped < CLIP_DURATION && isPressed) {
+          pressRafId = requestAnimationFrame(update);
+        } else {
+          // Finished 3s
+          if (clamped >= CLIP_DURATION) {
+            barPress.style.width = '100%';
+            timePress.textContent = `3.0s / 3.0s`;
+            // If completed its 3s while button is still pressed down, user can keep holding or release
+            statusText.textContent = "SOUND A COMPLETED &bull; RELEASE TO TRIGGER B";
+          }
+        }
+      }
+      pressRafId = requestAnimationFrame(update);
+    }
+
+    function resetPressProgress(clearImmediately = false) {
+      cancelAnimationFrame(pressRafId);
+      cardPress.classList.remove('border-indigo-500', 'bg-indigo-950/20');
+      if (clearImmediately) {
+        barPress.style.width = '0%';
+        timePress.textContent = '0.0s / 3.0s';
+      } else {
+        setTimeout(() => {
+          if (!isPressed) {
+            barPress.style.width = '0%';
+            timePress.textContent = '0.0s / 3.0s';
+          }
+        }, 350);
+      }
+    }
+
+    function startProgressRelease() {
+      cancelAnimationFrame(releaseRafId);
+      releaseStartTime = performance.now();
+      cardRelease.classList.add('border-emerald-500', 'bg-emerald-950/20');
+
+      function update() {
+        const elapsed = (performance.now() - releaseStartTime) / 1000;
+        const clamped = Math.min(elapsed, CLIP_DURATION);
+        const percent = (clamped / CLIP_DURATION) * 100;
+
+        barRelease.style.width = `${percent}%`;
+        timeRelease.textContent = `${clamped.toFixed(1)}s / 3.0s`;
+
+        if (clamped < CLIP_DURATION) {
+          releaseRafId = requestAnimationFrame(update);
+        } else {
+          barRelease.style.width = '100%';
+          timeRelease.textContent = '3.0s / 3.0s';
+          resetReleaseUI();
+        }
+      }
+      releaseRafId = requestAnimationFrame(update);
+    }
+
+    function resetReleaseUI() {
+      setTimeout(() => {
+        cardRelease.classList.remove('border-emerald-500', 'bg-emerald-950/20');
+        if (!isPressed) {
+          statusText.textContent = "READY: PRESS & HOLD";
+          statusDot.className = "w-2 h-2 rounded-full bg-slate-400";
+          statusPill.className = "inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-semibold tracking-wide bg-slate-800/80 border border-slate-700 text-slate-300";
+          ambientGlow.className = "absolute -top-32 w-96 h-96 bg-indigo-600/10 rounded-full blur-3xl pointer-events-none transition-all duration-700";
+        }
+      }, 500);
+    }
+
+    /* ------------------------------------------------------------------
+       Main Trigger Handlers: Press & Release Logic
+       ------------------------------------------------------------------ */
+    function handlePressStart(event) {
+      if (event && event.type === 'keydown') {
+        // Avoid repeated keydown firings while held
+        if (event.repeat || isPressed) return;
+        if (event.code !== 'Space' && event.key !== 'Enter') return;
+        event.preventDefault();
+      }
+
+      if (isPressed) return;
+      isPressed = true;
+      ensureAudioContext();
+
+      // UI updates for Pressed State
+      triggerBtn.classList.add('is-pressed', 'glow-press');
+      btnIcon.className = "ph-fill ph-speaker-high text-4xl text-indigo-300 animate-pulse";
+      btnTitle.textContent = "PLAYING SOUND A...";
+      btnSubtext.textContent = "Release to play Sound B";
+
+      statusDot.className = "w-2 h-2 rounded-full bg-indigo-400 animate-ping";
+      statusText.textContent = "PLAYING SOUND A (3s MAX)";
+      statusPill.className = "inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-semibold tracking-wide bg-indigo-950/80 border border-indigo-500/50 text-indigo-200";
+      ambientGlow.className = "absolute -top-32 w-96 h-96 bg-indigo-500/30 rounded-full blur-3xl pointer-events-none transition-all duration-300";
+
+      // Stop any pending release sound if triggered again rapidly
+      if (currentReleaseSource) {
+        currentReleaseSource.stop();
+        currentReleaseSource = null;
+      }
+      cancelAnimationFrame(releaseRafId);
+      barRelease.style.width = '0%';
+      timeRelease.textContent = '0.0s / 3.0s';
+
+      // Start Sound A & progress meter
+      currentPressSource = playAudioSlot('press');
+      startProgressPress();
+    }
+
+    function handlePressEnd(event) {
+      if (event && event.type === 'keyup') {
+        if (event.code !== 'Space' && event.key !== 'Enter') return;
+        event.preventDefault();
+      }
+
+      if (!isPressed) return;
+      isPressed = false;
+
+      // Check whether to cut Sound A immediately
+      const stopSoundAImmediately = forceClipCutCheck.checked;
+      if (currentPressSource && stopSoundAImmediately) {
+        currentPressSource.stop();
+        currentPressSource = null;
+      }
+
+      // UI Updates for Released state
+      triggerBtn.classList.remove('is-pressed', 'glow-press');
+      triggerBtn.classList.add('glow-release');
+      btnIcon.className = "ph-fill ph-sparkle text-4xl text-emerald-300";
+      btnTitle.textContent = "RELEASE TRIGGERED!";
+      btnSubtext.textContent = "Sound B is playing now (3s)";
+
+      statusDot.className = "w-2 h-2 rounded-full bg-emerald-400 animate-ping";
+      statusText.textContent = "RELEASED: PLAYING SOUND B (3s)";
+      statusPill.className = "inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-semibold tracking-wide bg-emerald-950/80 border border-emerald-500/50 text-emerald-200";
+      ambientGlow.className = "absolute -top-32 w-96 h-96 bg-emerald-500/30 rounded-full blur-3xl pointer-events-none transition-all duration-300";
+
+      resetPressProgress(false);
+
+      // Trigger Sound B (Release sound) for 3 seconds once
+      currentReleaseSource = playAudioSlot('release');
+      startProgressRelease();
+
+      // Reset button face after brief delay
+      setTimeout(() => {
+        triggerBtn.classList.remove('glow-release');
+        if (!isPressed) {
+          btnIcon.className = "ph-bold ph-hand-tap text-4xl text-indigo-200";
+          btnTitle.textContent = "PRESS & HOLD";
+          btnSubtext.textContent = "Sound A plays immediately";
+        }
+      }, 1200);
+    }
+
+    /* ------------------------------------------------------------------
+       Realtime Oscilloscope / Waveform Visualizer
+       ------------------------------------------------------------------ */
+    function renderVisualizer() {
+      requestAnimationFrame(renderVisualizer);
+
+      // Adjust canvas resolution dynamically
+      const width = canvas.clientWidth;
+      const height = canvas.clientHeight;
+      if (canvas.width !== width || canvas.height !== height) {
+        canvas.width = width;
+        canvas.height = height;
+      }
+
+      canvasCtx.clearRect(0, 0, width, height);
+
+      if (!analyser || !waveformData) {
+        // Draw idle resting line
+        canvasCtx.lineWidth = 2;
+        canvasCtx.strokeStyle = 'rgba(99, 102, 241, 0.2)';
+        canvasCtx.beginPath();
+        canvasCtx.moveTo(0, height / 2);
+        canvasCtx.lineTo(width, height / 2);
+        canvasCtx.stroke();
+        return;
+      }
+
+      analyser.getByteTimeDomainData(waveformData);
+
+      // Color scheme adapts depending on press vs release state
+      const gradient = canvasCtx.createLinearGradient(0, 0, width, 0);
+      if (isPressed) {
+        gradient.addColorStop(0, '#6366f1');
+        gradient.addColorStop(0.5, '#a855f7');
+        gradient.addColorStop(1, '#6366f1');
+      } else {
+        gradient.addColorStop(0, '#10b981');
+        gradient.addColorStop(0.5, '#14b8a6');
+        gradient.addColorStop(1, '#06b6d4');
+      }
+
+      canvasCtx.lineWidth = 2.5;
+      canvasCtx.strokeStyle = gradient;
+      canvasCtx.beginPath();
+
+      const sliceWidth = width / waveformData.length;
+      let x = 0;
+
+      for (let i = 0; i < waveformData.length; i++) {
+        const v = waveformData[i] / 128.0;
+        const y = (v * height) / 2;
+
+        if (i === 0) {
+          canvasCtx.moveTo(x, y);
+        } else {
+          canvasCtx.lineTo(x, y);
+        }
+        x += sliceWidth;
+      }
+
+      canvasCtx.lineTo(width, height / 2);
+      canvasCtx.stroke();
+    }
+
+    /* ------------------------------------------------------------------
+       Custom Audio File Loader & Decoder
+       ------------------------------------------------------------------ */
+    async function loadAudioBufferFromFile(file, slotKey) {
+      ensureAudioContext();
+      try {
+        const arrayBuffer = await file.arrayBuffer();
+        const decodedBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+
+        audioSlots[slotKey].type = 'buffer';
+        audioSlots[slotKey].buffer = decodedBuffer;
+        audioSlots[slotKey].fileName = file.name;
+
+        // Update labels & UI state
+        const label = document.getElementById(`label-${slotKey}-file`);
+        label.textContent = file.name;
+        label.classList.add('text-indigo-400');
+
+        // Deselect synth buttons visually
+        document.querySelectorAll(`.preset-btn[data-slot="${slotKey}"]`).forEach(btn => {
+          btn.className = "preset-btn px-2.5 py-2 text-xs rounded-xl bg-slate-800/80 border border-slate-700 text-slate-400 font-medium text-left truncate active:scale-95 transition";
+        });
+
+        showNotification(`Loaded "${file.name}" for Sound ${slotKey.toUpperCase()} (Plays max 3s)`);
+      } catch (err) {
+        console.error(err);
+        showNotification("Failed to decode audio file. Make sure it's valid MP3, WAV or OGG.", true);
+      }
+    }
+
+    async function loadAudioBufferFromUrl(url, slotKey) {
+      if (!url || !url.trim()) {
+        showNotification("Please provide a valid audio URL.", true);
+        return;
+      }
+      ensureAudioContext();
+      try {
+        showNotification("Fetching audio URL...");
+        const response = await fetch(url.trim());
+        if (!response.ok) throw new Error("HTTP error " + response.status);
+        const arrayBuffer = await response.arrayBuffer();
+        const decodedBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+
+        audioSlots[slotKey].type = 'buffer';
+        audioSlots[slotKey].buffer = decodedBuffer;
+        const filename = url.split('/').pop().split('?')[0] || "Custom URL Audio";
+        audioSlots[slotKey].fileName = filename;
+
+        const label = document.getElementById(`label-${slotKey}-file`);
+        label.textContent = filename;
+        label.classList.add('text-indigo-400');
+
+        document.querySelectorAll(`.preset-btn[data-slot="${slotKey}"]`).forEach(btn => {
+          btn.className = "preset-btn px-2.5 py-2 text-xs rounded-xl bg-slate-800/80 border border-slate-700 text-slate-400 font-medium text-left truncate active:scale-95 transition";
+        });
+
+        showNotification(`URL Audio ready for Sound ${slotKey.toUpperCase()}`);
+      } catch (err) {
+        console.error(err);
+        showNotification("Could not load URL (CORS or invalid audio stream).", true);
+      }
+    }
+
+    /* ------------------------------------------------------------------
+       Event Listeners Initialization
+       ------------------------------------------------------------------ */
+    window.addEventListener('DOMContentLoaded', () => {
+      // Start waveform rendering loop
+      renderVisualizer();
+
+      // Pointer events for instant responsive touch, pen and mouse handling
+      triggerBtn.addEventListener('pointerdown', (e) => {
+        triggerBtn.setPointerCapture(e.pointerId);
+        handlePressStart(e);
+      });
+
+      triggerBtn.addEventListener('pointerup', (e) => {
+        handlePressEnd(e);
+      });
+
+      triggerBtn.addEventListener('pointercancel', (e) => {
+        handlePressEnd(e);
+      });
+
+      // Keyboard Controls (Spacebar and Enter)
+      window.addEventListener('keydown', handlePressStart);
+      window.addEventListener('keyup', handlePressEnd);
+
+      // Master Volume Slider
+      masterVolumeInput.addEventListener('input', (e) => {
+        const val = parseFloat(e.target.value);
+        volumeLabel.textContent = `${Math.round(val * 100)}%`;
+        if (masterGain && audioCtx) {
+          masterGain.gain.setValueAtTime(val, audioCtx.currentTime);
+        }
+        if (val === 0) {
+          volumeIcon.className = "ph-fill ph-speaker-slash text-slate-500 text-sm";
+        } else if (val < 0.5) {
+          volumeIcon.className = "ph-fill ph-speaker-low text-slate-400 text-sm";
+        } else {
+          volumeIcon.className = "ph-fill ph-speaker-high text-slate-400 text-sm";
+        }
+      });
+
+      // Preset Selector Buttons
+      document.querySelectorAll('.preset-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const slot = btn.getAttribute('data-slot');
+          const preset = btn.getAttribute('data-preset');
+
+          audioSlots[slot].type = 'preset';
+          audioSlots[slot].presetName = preset;
+          audioSlots[slot].buffer = null;
+          audioSlots[slot].fileName = btn.textContent.trim();
+
+          const label = document.getElementById(`label-${slot}-file`);
+          label.textContent = "Using Synth";
+          label.classList.remove('text-indigo-400');
+
+          // Highlight selected preset
+          document.querySelectorAll(`.preset-btn[data-slot="${slot}"]`).forEach(b => {
+            const isTarget = b === btn;
+            const activeClass = slot === 'press' 
+              ? 'bg-indigo-600/20 border-indigo-500/50 text-indigo-300' 
+              : 'bg-emerald-600/20 border-emerald-500/50 text-emerald-300';
+            b.className = `preset-btn px-2.5 py-2 text-xs rounded-xl ${isTarget ? activeClass : 'bg-slate-800/80 border-slate-700 text-slate-400'} border font-medium text-left truncate active:scale-95 transition`;
+          });
+
+          showNotification(`Sound ${slot.toUpperCase()} switched to ${btn.textContent.trim()}`);
+        });
+      });
+
+      // Preview 3s Buttons
+      document.getElementById('preview-press-btn').addEventListener('click', () => {
+        ensureAudioContext();
+        showNotification("Previewing Sound A for 3.0s...");
+        const preview = playAudioSlot('press');
+        cardPress.classList.add('border-indigo-500');
+        let start = performance.now();
+        barPress.style.width = '0%';
+        function p() {
+          const el = (performance.now() - start) / 1000;
+          barPress.style.width = `${Math.min((el / CLIP_DURATION) * 100, 100)}%`;
+          timePress.textContent = `${Math.min(el, CLIP_DURATION).toFixed(1)}s / 3.0s`;
+          if (el < CLIP_DURATION) requestAnimationFrame(p);
+          else {
+            cardPress.classList.remove('border-indigo-500');
+            setTimeout(() => { barPress.style.width = '0%'; timePress.textContent = '0.0s / 3.0s'; }, 400);
+          }
+        }
+        requestAnimationFrame(p);
+      });
+
+      document.getElementById('preview-release-btn').addEventListener('click', () => {
+        ensureAudioContext();
+        showNotification("Previewing Sound B for 3.0s...");
+        const preview = playAudioSlot('release');
+        cardRelease.classList.add('border-emerald-500');
+        let start = performance.now();
+        barRelease.style.width = '0%';
+        function p() {
+          const el = (performance.now() - start) / 1000;
+          barRelease.style.width = `${Math.min((el / CLIP_DURATION) * 100, 100)}%`;
+          timeRelease.textContent = `${Math.min(el, CLIP_DURATION).toFixed(1)}s / 3.0s`;
+          if (el < CLIP_DURATION) requestAnimationFrame(p);
+          else {
+            cardRelease.classList.remove('border-emerald-500');
+            setTimeout(() => { barRelease.style.width = '0%'; timeRelease.textContent = '0.0s / 3.0s'; }, 400);
+          }
+        }
+        requestAnimationFrame(p);
+      });
+
+      // File Inputs
+      document.getElementById('file-input-press').addEventListener('change', (e) => {
+        if (e.target.files && e.target.files[0]) {
+          loadAudioBufferFromFile(e.target.files[0], 'press');
+        }
+      });
+      document.getElementById('file-input-release').addEventListener('change', (e) => {
+        if (e.target.files && e.target.files[0]) {
+          loadAudioBufferFromFile(e.target.files[0], 'release');
+        }
+      });
+
+      // URL Inputs
+      document.getElementById('load-url-press').addEventListener('click', () => {
+        const url = document.getElementById('url-input-press').value;
+        loadAudioBufferFromUrl(url, 'press');
+      });
+      document.getElementById('load-url-release').addEventListener('click', () => {
+        const url = document.getElementById('url-input-release').value;
+        loadAudioBufferFromUrl(url, 'release');
+      });
+    });
+  </script>
+</body>
+</html>
