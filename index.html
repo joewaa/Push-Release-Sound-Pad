@@ -3,6 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- PWA Manifest & Mobile Optimization -->
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#06b6d4" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="AudioButton" />
+  <link rel="apple-touch-icon" href="icon-192.png" />
   <title>Push & Release Sound Pad</title>
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -1121,6 +1129,45 @@
         loadAudioBufferFromUrl(url, 'release');
       });
     });
+    // Register Service Worker for PWA
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker
+          .register('./sw.js')
+          .then((reg) => {
+            console.log('Service Worker registered with scope:', reg.scope);
+          })
+          .catch((err) => {
+            console.error('Service Worker registration failed:', err);
+          });
+      });
+    }
+    let deferredPrompt;
+    const installBtn = document.getElementById('install-btn'); // Add a button with this ID in your HTML
+    
+    window.addEventListener('beforeinstallprompt', (e) => {
+      // Prevent default mini-infobar on mobile
+      e.preventDefault();
+      deferredPrompt = e;
+      // Show install button to the user
+      if (installBtn) installBtn.style.display = 'inline-flex';
+    });
+    
+    if (installBtn) {
+      installBtn.addEventListener('click', async () => {
+        if (!deferredPrompt) return;
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        console.log(`User response to install: ${outcome}`);
+        deferredPrompt = null;
+        installBtn.style.display = 'none';
+      });
+    }
+    
+    window.addEventListener('appinstalled', () => {
+      console.log('PWA installed successfully!');
+      if (installBtn) installBtn.style.display = 'none';
+    });  
   </script>
 </body>
 </html>
